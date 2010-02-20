@@ -497,7 +497,7 @@ function domain_admin_helper_block($op = 'list', $delta = 0, $edit = array()) {
             $links['domadm_help'] = array(
               'title' => t('Help pages'),
               'href' => check_plain($helppage),
-              'target' => '_blank',
+              'attributes' => array('target' => '_blank'),
             ); 
           } 
           $output = theme_links($links, array('class' => 'item-list'));
