@@ -44,18 +44,7 @@ If the Locale and Domain Conf modules are enabled, the 'translate domain languag
 3.2. For developers there is a hook_domainadminblock if other modules want to append their own content to the block. 
 
 
-4. Additional functionality
------------------------------
-
-The domain_admin_helper module also contains some additional functionality, but it relies on enabling heavily patched versions of existing Drupal modules:
-
-4.1. Ability to configure domain blocks and add domain block - this relies on heavily patched version of Domain Blocks module, which in turn relies on a core patch. 
-
-4.2. Ability to delegate book pages and their children on a domain to a user who does not have full domain edit permissions - requires patched version of Book Page Access, available here. 
-
-We hope to reintegrate the functionality of these 2 modules back into their drupal.org versions (especially in case of number 4.2, we are not sure we can get around the necessity of the core patch in number 4.1) and then we can update domain_admin_helper accordingly.
-
-5. Credits
+4. Credits
 -----------
 
 Module developed by Vasudeva Server (http://www.vasudevaserver.org)
