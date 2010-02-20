@@ -1,0 +1,10 @@
+
+name = Domain Administration Helper
+description = Block and permission functions for managers/editors of individual domains.
+package = Domain Access
+version = 6.x-1.0rc1
+core = 6.x
+dependencies[] = domain
+
+
+

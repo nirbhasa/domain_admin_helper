@@ -1,0 +1,519 @@
+<?php
+
+/**
+ * Implementation of hook_perm().
+ */
+function domain_admin_helper_perm() {
+  $perms = array('view all unpublished nodes on domain',
+    'view own unpublished nodes on domain',
+    'update all unpublished nodes on domain',
+    'update own unpublished nodes on domain', 
+    'delete all unpublished nodes on domain',
+    'delete own unpublished nodes on domain', 
+    'change author and creation date of nodes on domain',
+    'access published checkbox on domain',
+  );
+
+  if (module_exists('book')) {
+    $perms[] = 'rearrange book pages on domain';
+  }	
+
+  if (module_exists('menu') && module_exists('domain_conf')) {
+    $perms[] = 'administer domain primary links menu';
+    $perms[] = 'administer domain secondary links menu';
+    $perms[] = 'administer domain navigation menu';
+  }
+
+  if (module_exists('webform')) {
+    $perms[] = 'access webform results on domain';
+  } 
+
+  if (module_exists('locale') && module_exists('domain_conf')) {
+    $perms[] = 'translate domain language content';
+  }
+  return $perms;
+}
+
+/**
+ * Implementation of hook_menu_alter().
+ */
+ 
+function domain_admin_helper_menu_alter(&$items) {	
+  //Menu links to access,edit and delete unpublished nodes 	
+  $items['node/%node']['access callback'] = '_domain_admin_helper_node_access';
+  $items['node/%node']['access arguments'] = array(1, 'view');
+  $items['node/%node/edit']['access callback'] = '_domain_admin_helper_node_access';
+  $items['node/%node/edit']['access arguments'] = array(1, 'update');
+  $items['node/%node/delete']['access callback'] = '_domain_admin_helper_node_access';
+  $items['node/%node/delete']['access arguments'] = array(1, 'delete');
+  
+  //Menu links to view the results of all webforms on own domain
+  $items['node/%webform_menu/webform-results']['access callback'] = '_domain_admin_helper_webform_access';
+  $items['node/%webform_menu/webform-results']['access arguments'] = array(1); 
+  $items['node/%webform_menu/webform-results/submissions']['access callback'] = '_domain_admin_helper_webform_access';
+  $items['node/%webform_menu/webform-results/submissions']['access arguments'] = array(1); 
+  $items['node/%webform_menu/webform-results/table']['access callback'] = '_domain_admin_helper_webform_access';
+  $items['node/%webform_menu/webform-results/table']['access arguments'] = array(1); 
+  $items['node/%webform_menu/webform-results/analysis']['access callback'] = '_domain_admin_helper_webform_access';
+  $items['node/%webform_menu/webform-results/analysis']['access arguments'] = array(1); 
+  $items['node/%webform_menu/webform-results/download']['access callback'] = '_domain_admin_helper_webform_access';
+  $items['node/%webform_menu/webform-results/download']['access arguments'] = array(1); 
+  $items['node/%webform_menu/webform-results/clear']['access callback'] = '_domain_admin_helper_webform_access';
+  $items['node/%webform_menu/webform-results/clear']['access arguments'] = array(1); 
+  $items['node/%webform_menu/submission/%webform_menu_submission']['access callback'] = '_domain_admin_helper_webform_access';
+  $items['node/%webform_menu/submission/%webform_menu_submission']['access arguments'] = array(1);
+  $items['node/%webform_menu/submission/%webform_menu_submission/view']['access callback'] = '_domain_admin_helper_webform_access';
+  $items['node/%webform_menu/submission/%webform_menu_submission/view']['access arguments'] = array(1);
+  
+  //Menu links to rearrange pages of book on own domain
+  $items['admin/content/book/%node']['access callback'] = '_domain_admin_helper_outline_access';
+  $items['admin/content/book/%node']['access arguments'] = array(3);
+  
+  //Menu links to administer menus assigned to own domain
+  $items['admin/build/menu-customize/%menu']['access callback'] = '_domain_admin_helper_menu_access';
+  $items['admin/build/menu-customize/%menu']['access arguments'] = array(3); 
+  $items['admin/build/menu-customize/%menu/list']['access callback'] = '_domain_admin_helper_menu_access';
+  $items['admin/build/menu-customize/%menu/list']['access arguments'] = array(3);
+  $items['admin/build/menu-customize/%menu/add']['access callback'] = '_domain_admin_helper_menu_access';
+  $items['admin/build/menu-customize/%menu/add']['access arguments'] = array(3);
+  $items['admin/build/menu-customize/%menu/edit']['access callback'] = '_domain_admin_helper_menu_access';
+  $items['admin/build/menu-customize/%menu/edit']['access arguments'] = array(3);
+}
+
+/**
+ * Permissions to view/edit/delete unpublished nodes on domain. If none of the 
+ * permission conditions are satisfied, then use node_access like normal.
+ */
+
+function _domain_admin_helper_node_access($node, $op) {
+
+  global $user; 	   
+  if (domain_admin_helper_isuserindomain($user)) { 
+    if (user_access($op .' all unpublished nodes on domain') && $node->status == 0) {
+      return TRUE;
+    }
+    elseif (in_array($user->uid, _domain_admin_helper_delegated_users($node->nid)) && $node->status == 0) {
+      return TRUE;
+    }
+    elseif (user_access($op .' own unpublished nodes on domain') && $node->status == 0 && $node->uid==$user->uid ) {   
+      return TRUE;
+    }    
+  }             
+  return node_access($op, $node);
+}
+
+
+/**
+ * Permissions to view webform results on domain. If none of the permission 
+ * conditions are satisfied, then refer to 'access webform results' permission.
+ */
+
+function _domain_admin_helper_webform_access($node) {
+	
+  global $user;
+  
+  if (domain_admin_helper_isuserindomain($user)) { 
+    if (user_access('access webform results on domain')) {
+      return TRUE;
+    }
+    elseif (in_array($user->uid, _domain_admin_helper_delegated_users($node->nid))) {
+      // See if user has been delegated to contact form
+      return TRUE;
+    }	
+  }  
+  return user_access('access webform results');
+}
+
+/**
+ * Permissions to rearrange book pages on domain. If none of the permission 
+ * conditions are satisfied, then refer to 'access webform results' permission.
+ */
+
+function _domain_admin_helper_outline_access($bid) {
+
+  global $user;
+  if (domain_admin_helper_isuserindomain($user) &&  user_access('rearrange book pages on domain') ) {
+    return TRUE;
+     }
+  return user_access('administer book outlines');
+}
+
+/**
+ * Permissions to administer menus assigned to domain. If none of the permission 
+ * conditions are satisfied, then refer to 'administer menu' permission.
+ */
+
+function _domain_admin_helper_menu_access($menu) {
+
+  global $_domain, $user;
+   
+  if ($menu['menu_name'] == domain_conf_variable_get($_domain['domain_id'], 'menu_primary_links_source')
+	 && domain_admin_helper_isuserindomain($user) && user_access('administer domain primary links menu') ) {
+       return TRUE;
+  }
+  if ($menu['menu_name'] == domain_conf_variable_get($_domain['domain_id'], 'menu_secondary_links_source')
+	 && domain_admin_helper_isuserindomain($user) && user_access('administer domain secondary links menu') ) {
+       return TRUE;
+  }
+  if ($menu['menu_name'] == domain_conf_variable_get($_domain['domain_id'], 'menu_default_node_menu')
+	 && domain_admin_helper_isuserindomain($user) && user_access('administer domain navigation menu') ) {
+       return TRUE;
+  }      
+  return user_access('administer menu');
+}	
+
+/**
+ * Override to allow access to node author and creation date fields on 
+ * a per-domain level without requiring 'administer nodes' permission.
+ */
+
+function domain_admin_helper_nodeapi(&$node, $op, $a3 = NULL, $a4 = NULL) {
+ 	
+ 	global $user;	
+  switch ($op) {
+     case 'presave':
+      
+       $delegated_users = _domain_admin_helper_delegated_users($node->nid);
+       if (!user_access('administer nodes') && domain_admin_helper_isuserindomain($user)) {
+
+         if (user_access('change author and creation date of nodes on domain') || in_array($user->uid, $delegated_users)) {
+           // Node creation date override
+           if ($node->date !== $node->override_authored_on || !empty($node->override_authored_on)) {
+             $node->date = $node->override_authored_on;
+             $node->created = !empty($node->override_authored_on) ? strtotime($node->override_authored_on) : time();
+           }
+
+           if (!empty($node->override_authored_by)) {
+             $account = user_load(array('name' => $node->override_authored_by));
+             $node->name = $account->name;
+             $node->uid = $account->uid;
+           }
+           elseif ($node->override_authored_by == "")  {
+             $node->name = "";
+             $node->uid = 0;
+           }
+         }
+         
+         if (user_access('change author and creation date of nodes on domain') || in_array($user->uid, $delegated_users)) {
+           if (isset($node->override_publishing_status)) { 
+	           $node->status = $node->override_publishing_status;
+           } 
+           elseif (isset($default->status)) {
+             $node->status = TRUE;
+          }
+        } 
+      }
+      break;
+  }
+}	
+
+function _domain_admin_helper_delegated_users($nid) {
+	
+  if (module_exists('book_page_access')) {
+    // Get list of delegated users for node
+    $delegated_users = book_page_access_user_permissions_tree($nid);
+  }
+  else {
+    $delegated_users = array();	
+  }
+  return $delegated_users;
+}  
+
+
+/**
+ * Determine if user is assigned to current domain.
+ */
+
+function domain_admin_helper_isuserindomain($user) {
+
+  global $_domain;
+  $domain_user = domain_get_user_domains($user);
+  $user_domains = array();
+
+  if (!empty($domain_user)) {
+    foreach ($domain_user as $key => $value) {
+      if (abs($value) > 0) {
+        $user_domains[] = $value;
+      }
+    }
+  }        
+  return in_array( $_domain['domain_id'], $user_domains );
+}   
+
+/**
+ * Implementation of hook_form_alter.
+ */   
+
+function domain_admin_helper_form_alter(&$form, &$form_state, $form_id) {
+
+  global $_domain, $user;
+  // Apply to all node editing forms, but make sure we are not on the 
+  // CCK field configuration form.
+  if ($form['#id'] == 'node-form' ) {
+    $node = $form['#node'];		
+    if (module_exists('book_page_access')) {
+  	  //If node exists, get list of delegated users for it; 
+  	  //otherwise get list of delegated users for its parent   
+  	  if (empty($form['nid']['#value'])) {
+  	     $parent = book_link_load($node->book['plid']);
+         $delegated_users = book_page_access_user_permissions_tree($parent['nid']);
+  	  }
+      else {	
+         $delegated_users = book_page_access_user_permissions_tree($node->nid);
+      }           
+    }
+    else {
+      $delegated_users = array();
+    }  	  
+
+    if (!user_access('administer nodes') && domain_admin_helper_isuserindomain($user)){	
+      
+      //user either has permission or has been delegated to use this page
+      if (user_access('access published checkbox on domain') || in_array($user->uid, $delegated_users) ) {
+        
+        $form['options'] = array(
+          '#type' => 'fieldset',
+          '#title' => t('Publishing options'), 
+          '#weight' => 25,    
+        );
+      
+        $form['options']['override_publishing_status']   = array(
+          '#type' => 'checkbox',
+          '#title' => t('Published'),
+          '#default_value' => $node->status,
+         );
+      } 
+      else {            
+          // Checkbox is hidden, but form values are passed 
+         $form['options']['#type'] = 'hidden'; 
+         $form['options']['status']['#type'] = 'hidden';
+         $form['options']['status']['#value'] = $node->status;            
+      }	
+      
+      if (user_access('change author and creation date of nodes on domain') || in_array($user->uid, $delegated_users) ) {
+        // Overriding normal author permissions, which depend on 'administer nodes' permission
+        $form['author'] = array(
+          '#type' => 'fieldset',
+          '#title' => t('Authoring information'),
+        );
+   
+        $form['author']['override_authored_by'] = array(
+          '#type' => 'textfield',
+          '#title' => t('Authored by'),
+          '#maxlength' => 60,
+          '#default_value' => $node->name,
+          '#weight' => -1,
+          '#description' => t('Leave blank for %anonymous.', array('%anonymous' => variable_get('anonymous', t('Anonymous')))),
+         );   
+         // User must have permission 'access user profiles' for autocomplete
+         if (user_access('access user profiles')) {
+          $form['author']['override_authored_by']['#autocomplete_path'] = 'user/autocomplete';
+         }
+
+         $form['author']['override_authored_on'] = array(
+           '#type' => 'textfield',
+           '#title' => t('Authored on'),
+           '#maxlength' => 25,
+           '#default_value' => $node->date,
+           '#description' => t('Format: %time. Leave blank to use the time of form submission.', array('%time' => !empty($node->date) ? $node->date : format_date($node->created, 'custom', 'Y-m-d H:i:s O'))),
+         );          
+       }  	   
+     } 
+  }
+  
+  //Configuring locale search form to limit it to domain language
+  if ($form['#id'] == 'locale-translate-seek-form' && domain_admin_helper_isuserindomain($user) 
+    && user_access('translate domain language content')) {
+      
+        $language = domain_conf_variable_get($_domain['domain_id'], 'language_default');
+
+        $form['search']['language'] = array(
+          '#type' => 'hidden',
+          '#value' => $language,
+        );    	
+  }	
+  
+  //Configuring translation edit form to limit it to domain language
+  if ($form['#id'] == 'locale-translate-edit-form' && domain_admin_helper_isuserindomain($user) 
+    && user_access('translate domain language content') ) {
+
+        $language = domain_conf_variable_get($_domain['domain_id'], 'language_default');
+        $form['translations'] = array('#tree' => TRUE);
+
+        $form['translations'][$language] = array(
+          '#type' => 'textarea',
+          '#title' => locale_language_name($language),
+          '#rows' => 4,
+          '#default_value' => '',
+        ); 
+        $lid = arg(4);
+        
+        $result = db_query("SELECT DISTINCT translation FROM {locales_target} WHERE lid = %d AND language = '%s'", $lid, $language);
+        while ($translation = db_fetch_object($result)) {
+           $form['translations'][$language]['#default_value'] = $translation->translation;
+        }
+   }    
+}
+
+/**
+ * Implementation of hook_domainform().
+ *
+ * Adds module specific fields to domain configuration form
+ */
+ 
+function domain_admin_helper_domainform(&$form) {
+  
+  $form['domain_admin_helper'] = array(
+    '#type' => 'fieldset',
+    '#title' => t('Domain Administration Helper'),
+    '#collapsible' => TRUE,
+    '#collapsed' => FALSE,
+  );
+  
+  $form['domain_admin_helper']['domain_admin_helper_help_pages'] = array(
+    '#type' => 'textfield',
+    '#title' => t('Site name'),
+    '#size' => 40,
+    '#maxlength' => 80,
+    '#required' => FALSE,
+    '#default_value' => variable_get('domain_admin_helper_help_pages', ''),
+    '#description' => t('A link to help pages that will be displayed on the domain administration block. May be an internal Drupal path or an external URL.'),
+  );  
+}  
+
+/**
+ * Implementation of hook_block().
+ *
+ * Displays admin block
+ */
+ 
+function domain_admin_helper_block($op = 'list', $delta = 0, $edit = array()) {
+
+  $block = array();
+  switch ($op) {
+    case 'list':
+      $block[0]['info'] = t('Admin block for domain');
+      return $block;
+    case 'view':
+       global $user, $_domain;
+
+       if ($_domain['domain_id'] > 0 && domain_admin_helper_isuserindomain($user)) { 
+          
+          $block['subject'] = $_domain['sitename'];
+                 
+          // Return entire domain variable array
+          $domain_vars = domain_conf_variable_get($_domain['domain_id'], '', TRUE, FALSE);
+          $path = db_result(db_query("SELECT src FROM {url_alias} WHERE dst = '%s' AND language = '%s' ", $domain_vars['site_frontpage'], $domain_vars['language_default']));
+          $pathargs = explode('/', $path);
+          $links = array();
+                      
+          if (user_access('rearrange book pages on domain') ) {  
+             //Book ID is the same as top level node ID
+             $links['domlink_book'] = array(
+               'title' => t('View/rearrange pages'),
+               'href' => 'admin/content/book/'. $pathargs[1],
+             );        
+          }     
+          // Adding child page of book page. If referring page is not a book page, 
+          // then the page will be a subpage of the domain home page.
+          
+          if (arg(0) == 'node' && !(arg(1)=='add' || arg(2)=='edit')) {
+            $node = node_load(arg(1));
+          }
+          else {
+            $node = node_load($pathargs[1]);
+          }		
+          $parent_menu_id = $node->book['mlid'];
+            
+          // Generates edit link for each node type the user has permission for.
+          // If the current node is currently part of a book structure the new page 
+          // will be its child.   
+          $node_types = node_get_types('names');
+          foreach ($node_types as $key => $value) {
+            if (user_access('create '.$key.' content')) {
+              if (!empty($node->book['bid']) ) {
+                if (arg(0) == 'node' && !(arg(1)=='add' || arg(2)=='edit')) {
+                  $parent_node = node_load(arg(1));
+                }
+                else {
+                  $node = node_load($pathargs[1]);
+                }		
+                $parent_menu_id = $node->book['mlid'];
+   	
+                $links['domadm_'. $key] = array(
+                  'title' => t('Create new '. strtolower($value)),
+                  'href' => 'node/add/'. $key,
+                  'query' => 'parent='. $parent_menu_id,
+                );
+              }
+              else {
+                $links['domadm_'. $key] = array(
+                  'title' => t('Create new'. strtolower($value)),
+                  'href' => 'node/add/'. $key,
+                ); 
+              }     
+            }
+         }
+                                  
+         if (user_access('administer domain blocks')) {	               
+           //Changing sidebar blocks
+           $links['domadm_region'] = array(
+             'title' => t('Edit page regions'),
+             'href' => 'admin/build/domain/blocks/'. $_domain['domain_id'],
+           ); 
+           //Add new sidebar block    
+           $links['domadm_block'] = array(
+             'title' => t('Add region block'),
+             'href' => 'admin/build/domain/blocks/add',
+           );              
+         }	       
+         if (user_access('administer domain primary links menu') ) {    
+           $links['domadm_primary_links'] = array(
+             'title' => t('Edit main menu'),
+             'href' => 'admin/build/menu-customize/'. $domain_vars['menu_primary_links_source'],
+           );
+         }  
+         if (user_access('administer domain secondary links menu') ) {   
+           $links['domadm_secondary_links'] = array(
+             'title' => t('Edit sub-menu'),
+             'href' => 'admin/build/menu-customize/'. $domain_vars['menu_secondary_links_source'],
+           );
+         }  
+         if (user_access('administer domain navigation menu') ) {    
+           $links['domadm_menu'] = array(
+             'title' => t('Edit navigation'),
+             'href' => 'admin/build/menu-customize/'. $domain_vars['menu_default_node_menu'],
+           );
+         }       
+         if (user_access('translate domain language content') ) {
+           $links['domadm_translate'] = array(
+             'title' => t('Translate site'),
+             'href' => 'admin/build/translate/search',
+           );             
+         } 
+         //Link to help pages  
+          $helppage = variable_get('domain_admin_helper_help_pages', '');
+          if (!empty($helppage)) {       
+            $links['domadm_help'] = array(
+              'title' => t('Help pages'),
+              'href' => check_plain($helppage),
+              'target' => '_blank',
+            ); 
+          } 
+          $output = theme_links($links, array('class' => 'item-list'));
+          
+          // Allow other modules to add items to the block via hook_domainadminblock.
+          $modules = module_implements('domainadminblock');
+          if (!empty($modules)) {
+            foreach ($modules as $module) {
+              $func = $module .'_domainadminblock';
+              $output .= $func();
+            }
+          }      
+          $block['content']= $output;            
+      }
+      return $block;    
+   } 
+}
+
+
