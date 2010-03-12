@@ -41,13 +41,25 @@ If the Locale and Domain Conf modules are enabled, the 'translate domain languag
 
 3.1. The domain admin block will add a 'Create new…' link for any node type the user has permission to edit. If the current node is part of a book structure, and the 'Create new…' link is clicked for a book-enabled content type, by default the parent will be set to the current node (this of course can be changed in the 'Book Navigation' fieldset).
 
-3.2. For developers there is a hook_domainadminblock if other modules want to append their own content to the block. 
+3.2. For developers there is a hook_domainadminblock if other modules want to append their own content to the block.
 
 
-4. Credits
+4. Additional Functionality
+-----------------------------
+
+There is some additional functionality which depends on the following 2 patched modules in our github repp. However if you don't install these modules, the above functionality will work fine without it. We hope to submit patches to integrate these with drupal.org soon.
+
+4.1 Domain Blocks: There is additional functionality contained within the module which facilitates the management of domain blocks, but it relies on a heavily modified version of the domain_block module that right now exists only in our github repo at http://github.com/vasudeva-server/domain_blocks
+
+Enabling the module and enabling the 'administer domain blocks' permission will create 'Configure regions' and 'Add region content' links to the sidebar.
+
+4.2 Book page access: The patched version exists at http://github.com/vasudeva-server/book_page_access and extends the module to delegate access to individual users.
+
+
+5. Credits
 -----------
 
-Module developed by Vasudeva Server (http://www.vasudevaserver.org)
+Module developed by Vasudeva Server (http://www.vasudevaserver.org). First used on the Sri Chinmoy Marathon Team website (http://www.srichinmoyraces.org)
 
 Thank you to the Override Node Options and View Unpublished Nodes modules for showing us how to do some things.
 
